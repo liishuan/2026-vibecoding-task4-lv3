@@ -68,42 +68,20 @@ function updateUserInfoDisplay() {
 // 3. 自訂 Modal 工具
 // ==========================================
 function customConfirm(title, message, onConfirm) {
-    const modal = document.getElementById('custom-modal');
-    document.getElementById('modal-title').innerText = title;
-    document.getElementById('modal-body').innerText = message;
-
-    const btnCancel = document.getElementById('modal-btn-cancel');
-    const btnConfirm = document.getElementById('modal-btn-confirm');
-
-    btnCancel.classList.remove('hidden');
-
-    btnCancel.onclick = () => {
-        modal.classList.add('hidden');
-    };
-    btnConfirm.onclick = () => {
-        modal.classList.add('hidden');
+    if (window.confirm(`${title}\n\n${message}`)) {
         onConfirm();
-    };
-
-    modal.classList.remove('hidden');
+    }
 }
 
 function customAlert(title, message) {
-    const modal = document.getElementById('custom-modal');
-    document.getElementById('modal-title').innerText = title;
-    document.getElementById('modal-body').innerText = message;
-
-    const btnCancel = document.getElementById('modal-btn-cancel');
-    const btnConfirm = document.getElementById('modal-btn-confirm');
-
-    btnCancel.classList.add('hidden');
-
-    btnConfirm.onclick = () => {
-        modal.classList.add('hidden');
-    };
-
-    modal.classList.remove('hidden');
+    window.alert(`${title}\n\n${message}`);
 }
+
+
+
+
+
+
 
 // ==========================================
 // 4. Google API 與資料庫封裝
@@ -392,24 +370,70 @@ function bindEvents() {
         }
     });
 
-    document.getElementById('btn-clear-orders').addEventListener('click', () => {
-        customConfirm('⚠️ 嚴重警告', '確定要清空今天「所有」的訂單嗎？（標題列會保留，其餘刪除，且無法復原！）', async () => {
-            showLoading('清空中...');
+    // 清空訂單 (原生 Confirm + 微互動)
+    document.getElementById('btn-clear-orders').addEventListener('click', async function () {
+        if (window.confirm('確定要清空今天「所有」的訂單嗎？\n（標題列會保留，其餘刪除，且無法復原！）')) {
+            const btn = this;
+            const originalHtml = btn.innerHTML;
+
+            // 按下確認後的狀態
+            btn.innerHTML = '⏳ 清空中...';
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+
             try {
                 await clearSheet('Orders!A2:I');
-                hideLoading();
-                customAlert('成功', '所有訂單資料已清空。');
-                loadOrdersData();
+
+                // 成功狀態
+                btn.innerHTML = '✅ 已徹底清空';
+                btn.style.backgroundColor = '#2D6A4F';
+                btn.style.borderColor = '#2D6A4F';
+                btn.style.opacity = '1';
+
+                await loadOrdersData(); // 重新拉取並更新表格
+
+                // 2 秒後復原
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.style.backgroundColor = '';
+                    btn.style.borderColor = '';
+                    btn.disabled = false;
+                }, 2000);
             } catch (e) {
-                hideLoading();
-                customAlert('錯誤', '清空失敗');
+                console.error(e);
+                window.alert('錯誤\n\n清空失敗');
+                btn.innerHTML = '❌ 失敗';
+                btn.style.opacity = '1';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }, 2000);
             }
-        });
+        }
     });
 
-    document.getElementById('btn-refresh-orders').addEventListener('click', () => {
-        loadOrdersData();
+    // 重新整理訂單 (行內讀取 + 微互動)
+    document.getElementById('btn-refresh-orders').addEventListener('click', async function () {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+
+        btn.innerHTML = '⏳ 讀取中...';
+        btn.disabled = true;
+
+        await loadOrdersData();
+
+        btn.innerHTML = '✅ 已更新';
+        btn.style.color = '#2D6A4F'; // outline 按鈕改字體顏色即可
+        btn.style.borderColor = '#2D6A4F';
+
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.style.color = '';
+            btn.style.borderColor = '';
+            btn.disabled = false;
+        }, 1500);
     });
+
 
     document.getElementById('btn-refresh-public-orders').addEventListener('click', () => {
         loadPublicOrders();
@@ -502,7 +526,10 @@ async function loadPublicOrders() {
 // 8. 帳務與複製訂單核心邏輯
 // ==========================================
 async function loadOrdersData() {
-    showLoading('取得最新訂單...');
+    const tbody = document.getElementById('admin-orders-tbody');
+    // 在表格內顯示行內讀取中 (colspan 為 6 因為目前有 6 個欄位)
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem;">⏳ 載入中...</td></tr>';
+
     try {
         const rawOrders = await getSheetData('Orders!A2:I');
         appData.orders = rawOrders.map((row, idx) => ({
@@ -520,14 +547,11 @@ async function loadOrdersData() {
 
         renderAdminOrdersTable();
         renderCopySection();
-        hideLoading();
     } catch (e) {
-        hideLoading();
-        customAlert('拉取失敗', '無法取得最新訂單');
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red; padding: 2rem;">載入失敗</td></tr>';
         console.error(e);
     }
 }
-
 function renderAdminOrdersTable() {
     const tbody = document.getElementById('admin-orders-tbody');
     tbody.innerHTML = '';
@@ -571,26 +595,27 @@ function renderAdminOrdersTable() {
             statusClass = 'status-partial';
         }
 
-        const itemsDisplay = person.items.join(', ');
+        // 修改：將餐點內容改為每一項都包在 <div> 中以實現換行
+        const itemsDisplay = person.items.map(item => `<div class="order-item-row">${item}</div>`).join('');
 
         tr.innerHTML = `
-            <td>${person.name}</td>
-            <td class="text-sm text-muted">${person.email}</td>
+            <td class="nowrap-cell">${person.name}</td>
             <td class="text-sm">${itemsDisplay}</td>
             <td>$${person.totalPrice}</td>
             <td>
                 <input type="number" class="form-input" style="width: 80px; margin:0;" value="${person.totalPaid}" id="person-paid-${person.email.replace(/[@.]/g, '_')}">
             </td>
-            <td class="${statusClass}">${status}</td>
-            <td>
-                <button class="btn-sm btn-primary" onclick="updatePersonFinance('${person.email}', ${person.totalPrice})">更新</button>
+            <td class="nowrap-cell"><span class="${statusClass}">${status}</span></td>
+            <td class="nowrap-cell">
+                <button class="btn-sm btn-primary" onclick="updatePersonFinance('${person.email}', ${person.totalPrice}, this)">更新</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-async function updatePersonFinance(email, totalPrice) {
+// 這裡多接收了 btnElement 參數
+async function updatePersonFinance(email, totalPrice, btnElement) {
     const inputId = `person-paid-${email.replace(/[@.]/g, '_')}`;
     let newTotalPaid = parseInt(document.getElementById(inputId).value) || 0;
 
@@ -600,7 +625,11 @@ async function updatePersonFinance(email, totalPrice) {
     const userOrders = appData.orders.filter(o => o.email === email);
     if (userOrders.length === 0) return;
 
-    showLoading(`分配 ${userOrders[0].name} 的收款金額...`);
+    // --- 1. 點擊當下（處理中狀態） ---
+    const originalHtml = btnElement.innerHTML;
+    btnElement.innerHTML = '⏳...';
+    btnElement.style.opacity = '0.7'; // 稍微變透明
+    btnElement.disabled = true;       // 鎖定按鈕防止連點
 
     let remaining = newTotalPaid;
     try {
@@ -617,14 +646,49 @@ async function updatePersonFinance(email, totalPrice) {
         });
 
         await Promise.all(promises);
-        hideLoading();
-        customAlert('成功', `已更新 ${userOrders[0].name} 的帳務狀態。`);
-        loadOrdersData();
+
+        // --- 2. 處理成功狀態 ---
+        btnElement.innerHTML = '✅ 已更新';
+        btnElement.style.backgroundColor = '#2D6A4F'; // 變成成功綠色
+        btnElement.style.borderColor = '#2D6A4F';
+        btnElement.style.opacity = '1';               // 恢復不透明
+        btnElement.disabled = false;                  // 解除鎖定
+
+        // --- 3. 兩秒後狀態還原 ---
+        setTimeout(() => {
+            btnElement.innerHTML = originalHtml;
+            btnElement.style.backgroundColor = ''; // 清除 inline style，恢復 CSS 原本的紅色
+            btnElement.style.borderColor = '';
+
+            // 等按鈕特效看完後，再重新拉取最新資料更新表格文字（例如「尚欠」變成「全額付清」）
+            loadOrdersData();
+        }, 2000);
+
     } catch (e) {
-        hideLoading();
-        customAlert('錯誤', '更新失敗：' + e.message);
+        console.error('帳務更新失敗：', e);
+
+        // --- 4. 處理失敗狀態 ---
+        btnElement.innerHTML = '❌ 失敗';
+        btnElement.style.opacity = '1';
+        btnElement.disabled = false;
+
+        // 兩秒後狀態還原
+        setTimeout(() => {
+            btnElement.innerHTML = originalHtml;
+        }, 2000);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
 
 // 渲染「一鍵複製」的店家群組與設定區
 function renderCopySection() {

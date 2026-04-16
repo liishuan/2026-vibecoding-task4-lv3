@@ -632,3 +632,41 @@ body {
         width: 100%;
     }
 }
+
+/* ==========================================
+   後台表格排版優化 (移除擠壓)
+   ========================================== */
+
+/* 強制特定儲存格內容不換行 */
+.nowrap-cell {
+    white-space: nowrap !important;
+}
+
+/* 讓狀態標籤內部的文字也不要換行 */
+.status-paid,
+.status-partial,
+.status-unpaid {
+    white-space: nowrap;
+    display: inline-block;
+    /* 確保背景色塊完整包覆文字 */
+}
+
+/* 餐點內容換行後的間距微調 */
+.order-item-row {
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+.order-item-row:last-child {
+    margin-bottom: 0;
+}
+
+/* 調整表格欄位寬度權重，讓餐點內容佔用較多空間 */
+.account-table td:nth-child(2) {
+    min-width: 200px;
+}
+
+/* 讓更新按鈕在儲存格內保持水平並排，不被擠壓 */
+.account-table td:last-child {
+    text-align: center;
+}
