@@ -193,6 +193,7 @@ body {
     /* 漸層文字效果：從深藍到主色紅 */
     background: linear-gradient(45deg, var(--accent-dark) 30%, var(--primary-color) 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 
     /* 復古立體陰影 (左下方的重疊感) */
