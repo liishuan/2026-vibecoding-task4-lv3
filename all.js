@@ -435,8 +435,30 @@ function bindEvents() {
     });
 
 
-    document.getElementById('btn-refresh-public-orders').addEventListener('click', () => {
-        loadPublicOrders();
+    // 重新整理大家的訂單 (前台端 - 行內讀取 + 微互動)
+    document.getElementById('btn-refresh-public-orders').addEventListener('click', async function () {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+
+        // 點擊當下的處理中狀態
+        btn.innerHTML = '⏳ 讀取中...';
+        btn.disabled = true;
+
+        // 等待資料拉取完畢
+        await loadPublicOrders();
+
+        // 成功狀態
+        btn.innerHTML = '✅ 已更新';
+        btn.style.color = '#2D6A4F';
+        btn.style.borderColor = '#2D6A4F';
+
+        // 1.5 秒後恢復原狀
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.style.color = '';
+            btn.style.borderColor = '';
+            btn.disabled = false;
+        }, 1500);
     });
 
     document.getElementById('btn-logout').addEventListener('click', () => {
@@ -461,12 +483,14 @@ function loadAdminData() {
     });
 }
 
+// 拉取並渲染前台公開訂單與彙整
 async function loadPublicOrders() {
     const tbody = document.getElementById('public-orders-tbody');
     const summaryTbody = document.getElementById('public-summary-tbody');
 
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">載入中...</td></tr>';
-    summaryTbody.innerHTML = '<tr><td colspan="3" style="text-align:center">載入中...</td></tr>';
+    // 修改點 1：剛開始載入時，加上 ⏳ 與 padding 留白
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem;">⏳ 載入中...</td></tr>';
+    summaryTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 2rem;">⏳ 載入中...</td></tr>';
 
     try {
         const rawOrders = await getSheetData('Orders!A2:G');
@@ -516,8 +540,9 @@ async function loadPublicOrders() {
         });
 
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red">載入失敗</td></tr>';
-        summaryTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:red">載入失敗</td></tr>';
+        // 修改點 2：發生錯誤時，也加上 padding 留白
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red; padding: 2rem;">載入失敗</td></tr>';
+        summaryTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:red; padding: 2rem;">載入失敗</td></tr>';
         console.error('拉取公開訂單失敗：', e);
     }
 }

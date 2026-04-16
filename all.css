@@ -670,3 +670,38 @@ body {
 .account-table td:last-child {
     text-align: center;
 }
+
+/* ==========================================
+   後台切換頁籤按鈕樣式 (Glassmorphism Tabs)
+   ========================================== */
+
+/* 未啟用狀態：半透明玻璃質感 */
+.tab-btn {
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid var(--glass-stroke);
+    border-radius: 14px;
+    color: var(--accent-dark);
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.6rem 1.5rem;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    backdrop-filter: blur(8px);
+    /* 讓背後的背景微微模糊 */
+}
+
+/* 滑鼠移過去的微互動：變亮且微浮起 */
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.7);
+    transform: translateY(-2px);
+}
+
+/* 已啟用狀態：實心深藍色 + 陰影 */
+.tab-btn.active {
+    background: var(--accent-dark);
+    color: white;
+    border-color: var(--accent-dark);
+    box-shadow: 0 6px 15px rgba(29, 53, 87, 0.3);
+    transform: translateY(-1px);
+    /* 保持一點點浮起的高度感 */
+}
