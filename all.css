@@ -184,27 +184,28 @@ body {
 }
 
 .brand-title {
-    /* 使用 Google Font 已引入的 Bungee 字體，極具美式復古感 */
     font-family: 'Bungee', cursive;
     font-size: 2.2rem;
     text-transform: uppercase;
     letter-spacing: 2px;
 
-    /* 漸層文字效果：從深藍到主色紅 */
+    /* 1. 修正相容性：必須加上 -webkit- 前綴 */
     background: linear-gradient(45deg, var(--accent-dark) 30%, var(--primary-color) 100%);
     -webkit-background-clip: text;
     background-clip: text;
+    /* 標準寫法 */
+
     -webkit-text-fill-color: transparent;
+    -webkit-text-fill-color: transparent;
+    /* 標準寫法 */
 
-    /* 復古立體陰影 (左下方的重疊感) */
+    /* 2. 避免背景色溢出（有些瀏覽器在 GitHub 環境會噴掉） */
+    display: inline-block;
+
     filter: drop-shadow(3px 3px 0px rgba(168, 218, 220, 0.4));
-
-    /* 稍微傾斜一點點，增加動態感 */
     transform: skew(-5deg);
     margin: 0;
     line-height: 1;
-
-    /* 滑鼠移上去的微互動 */
     transition: var(--transition-smooth);
     cursor: default;
     user-select: none;
