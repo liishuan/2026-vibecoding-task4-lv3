@@ -173,6 +173,54 @@ body {
     margin-left: 10px;
 }
 
+/* ==========================================
+   Logo 標題文字設計 (Today's Order)
+   ========================================== */
+
+.header-logo-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.brand-title {
+    /* 使用 Google Font 已引入的 Bungee 字體，極具美式復古感 */
+    font-family: 'Bungee', cursive;
+    font-size: 2.2rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+
+    /* 漸層文字效果：從深藍到主色紅 */
+    background: linear-gradient(45deg, var(--accent-dark) 30%, var(--primary-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+
+    /* 復古立體陰影 (左下方的重疊感) */
+    filter: drop-shadow(3px 3px 0px rgba(168, 218, 220, 0.4));
+
+    /* 稍微傾斜一點點，增加動態感 */
+    transform: skew(-5deg);
+    margin: 0;
+    line-height: 1;
+
+    /* 滑鼠移上去的微互動 */
+    transition: var(--transition-smooth);
+    cursor: default;
+    user-select: none;
+}
+
+.brand-title:hover {
+    filter: drop-shadow(5px 5px 0px rgba(255, 183, 3, 0.5));
+    transform: skew(-5deg) scale(1.05);
+}
+
+/* 手機版縮放標題 */
+@media (max-width: 768px) {
+    .brand-title {
+        font-size: 1.4rem;
+    }
+}
+
 /* Container */
 .container {
     max-width: 1000px;
