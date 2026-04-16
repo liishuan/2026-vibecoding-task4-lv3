@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公司內部點餐系統</title>
+    <link rel="stylesheet" href="all.css">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body>
+    <!-- 背景裝飾光暈 -->
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <header class="app-header">
+        <div class="header-container">
+            <div class="header-logo-group">
+                <img src="./logo.png" alt="Today's Order Logo" class="brand-logo">
+                <h1 class="hidden">TODAY'S ORDER</h1>
+            </div>
+
+            <div id="user-info" class="user-profile hidden">
+                <img id="user-avatar" src="" alt="avatar" class="avatar-circle">
+                <div class="user-meta">
+                    <span id="user-name-display" class="user-name"></span>
+                    <span id="user-role-badge" class="badge"></span>
+                </div>
+                <div class="user-actions">
+                    <button id="btn-switch-admin" class="btn-sm btn-outline hidden">後台</button>
+                    <button id="btn-switch-user" class="btn-sm btn-outline hidden">點餐</button>
+                    <button id="btn-logout" class="btn-sm btn-outline">登出</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- 載入中遮罩 -->
+        <div id="loading-overlay" class="hidden">
+            <div class="spinner"></div>
+            <p id="loading-text">資料載入中...</p>
+        </div>
+
+        <!-- View: 登入頁面 -->
+        <section id="view-login" class="view-section active">
+            <div class="card login-card">
+                <h2>歡迎使用點餐系統</h2>
+                <p>請先使用您的 Google 帳戶登入以驗證身分。</p>
+                <button id="btn-google-login" class="btn btn-google btn-large mt-3">
+                    <img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3Cpath fill='none' d='M0 0h48v48H0z'/%3E%3C/svg%3E"
+                        alt="G" class="google-logo">
+                    使用 Google 登入
+                </button>
+            </div>
+        </section>
+
+        <!-- View: 未獲授權 -->
+        <section id="view-unauthorized" class="view-section hidden">
+            <div class="card warning-card">
+                <h2>⛔ 未獲授權</h2>
+                <p>抱歉，您的 Email 不在系統白名單內。<br>請聯絡管理員開通權限。</p>
+            </div>
+        </section>
+
+        <!-- View: 一般用戶點餐區 -->
+        <section id="view-ordering" class="view-section hidden">
+            <div class="section-header">
+                <h2>今日菜單 🍽️</h2>
+                <p>開放餐廳：<strong id="today-restaurants-display">-</strong></p>
+            </div>
+
+            <!-- 骨架屏 / 餐點列表 -->
+            <div id="menu-list" class="menu-grid">
+                <!-- 餐點卡片將透過 JS 動態產生 -->
+            </div>
+
+            <!-- 大家的點餐區塊 -->
+            <div class="card mt-4">
+                <div class="flex-between">
+                    <h3>大家的訂單 📝</h3>
+                    <button id="btn-refresh-public-orders" class="btn-sm btn-outline">↺ 重新整理清單</button>
+                </div>
+                <div class="table-responsive mt-3">
+                    <table class="account-table">
+                        <thead>
+                            <tr>
+                                <th>訂購人</th>
+                                <th>餐廳</th>
+                                <th>餐點</th>
+                                <th>備註</th>
+                                <th>金額</th>
+                            </tr>
+                        </thead>
+                        <tbody id="public-orders-tbody">
+                            <!-- 訂單列表將動態產生 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 個人應付金額彙整區 -->
+            <div class="card mt-4">
+                <h3>應付金額彙整 💰</h3>
+                <div class="table-responsive mt-3">
+                    <table class="account-table">
+                        <thead>
+                            <tr>
+                                <th>訂購人</th>
+                                <th>總餐點數</th>
+                                <th>總計金額</th>
+                            </tr>
+                        </thead>
+                        <tbody id="public-summary-tbody">
+                            <!-- 彙整資料將動態產生 -->
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted text-sm mt-3">※ 此處顯示為今日所有點餐的總計，方便大家對帳。</p>
+            </div>
+        </section>
+
+        <!-- View: 管理員後台專區 -->
+        <section id="view-admin" class="view-section hidden">
+            <div class="admin-tabs">
+                <button class="tab-btn active" data-target="admin-today">設定今日餐廳</button>
+                <button class="tab-btn" data-target="admin-orders">帳務與生成訂單</button>
+            </div>
+
+            <!-- 子分頁: 設定今日餐廳 -->
+            <div id="admin-today" class="admin-tab-content active">
+                <div class="card">
+                    <h3>設定今日開放餐廳</h3>
+                    <p class="text-muted">請勾選今天要開放點餐的餐廳，這將會覆蓋前台的菜單。</p>
+                    <div id="restaurant-checkboxes" class="checkbox-group">
+                        <!-- 餐廳選項將動態產生 -->
+                    </div>
+                    <button id="btn-save-today-restaurants" class="btn btn-primary">儲存今日餐廳</button>
+                </div>
+            </div>
+
+            <!-- 子分頁: 帳務與生成訂單 -->
+            <div id="admin-orders" class="admin-tab-content hidden">
+                <div class="card">
+                    <h3>產生給店家的訂單（一鍵複製）</h3>
+                    <div id="copy-order-config" class="copy-config-area">
+                        <!-- 依據今日餐廳動態建立設定區塊 -->
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="flex-between">
+                        <h3>今日訂單與帳務管理</h3>
+                        <button id="btn-refresh-orders" class="btn-sm btn-outline">重新整理</button>
+                    </div>
+                    <div class="table-responsive mt-3">
+                        <table class="account-table">
+                            <thead>
+                                <tr>
+                                    <th>訂購人</th>
+                                    <th>信箱</th>
+                                    <th>餐點內容</th>
+                                    <th>總額</th>
+                                    <th>已付</th>
+                                    <th>狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-orders-tbody">
+                                <!-- 訂單列表將動態產生 -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="danger-zone mt-5">
+                        <hr>
+                        <h4>危險操作</h4>
+                        <button id="btn-clear-orders" class="btn btn-danger">清空今日所有點餐</button>
+                        <p class="text-sm text-danger mt-1">注意：此操作無法復原，會刪除 Orders 試算表中所有訂單列（保留標題）。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal 提示框 -->
+    <div id="custom-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3 id="modal-title">提示</h3>
+            <p id="modal-body">內容</p>
+            <div class="modal-actions">
+                <button id="modal-btn-cancel" class="btn btn-outline hidden">取消</button>
+                <button id="modal-btn-confirm" class="btn btn-primary">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 統編記住我的小工具 -->
+    <script src="all.js"></script>
+</body>
+
+</html>
