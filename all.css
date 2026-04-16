@@ -288,6 +288,13 @@ body {
     border: 1px solid var(--glass-stroke);
     display: flex;
     flex-direction: column;
+    /* 新增：解除隱藏限制，讓價格標籤可以完整凸出去不受裁切 */
+    overflow: visible !important;
+}
+
+/* 為了配合卡片解除限制，加上 relative 讓標籤能正確定位在卡片邊緣 */
+.menu-item {
+    position: relative;
 }
 
 .menu-item:hover {
@@ -308,23 +315,29 @@ body {
     color: var(--accent-dark);
 }
 
+/* 價格標籤放大與完美圓形優化 */
 .menu-item-price {
     background: var(--secondary-color);
     color: var(--accent-dark);
     font-weight: 900;
-    font-size: 1.1rem;
-    padding: 8px 12px;
+    font-size: 1.3rem;
+    /* 字體放大 */
     border-radius: 50%;
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    /* 圓圈變寬 */
+    height: 70px;
+    /* 圓圈變高 */
     display: flex;
     align-items: center;
     justify-content: center;
     position: absolute;
-    top: -10px;
-    right: -10px;
+    top: -15px;
+    /* 稍微再往右上推一點點，破框比例更好看 */
+    right: -15px;
     transform: rotate(10deg);
     box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    /* 確保變大後絕對不會被壓在其他元素下面 */
 }
 
 .menu-item-store {
@@ -704,4 +717,48 @@ body {
     box-shadow: 0 6px 15px rgba(29, 53, 87, 0.3);
     transform: translateY(-1px);
     /* 保持一點點浮起的高度感 */
+}
+
+/* ==========================================
+   修正：解決價格標籤遮擋上方文字的問題
+   ========================================== */
+
+/* 1. 讓「開放餐廳」這行文字有足夠的底部間距 */
+#ordering p.text-muted {
+    margin-bottom: 2.5rem !important;
+    /* 拉開空間，讓標籤有地方跳 */
+    position: relative;
+    z-index: 1;
+    /* 確保文字層級不會被壓在下面 */
+}
+
+/* 2. 讓菜單網格頂部也有間距，給第一排標籤呼吸空間 */
+.menu-grid {
+    margin-top: 2rem !important;
+}
+
+/* ==========================================
+   文字與排版輔助類別 (危險操作區塊優化)
+   ========================================== */
+
+/* 次要文字顏色 (降低視覺層級) */
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* 縮小字體 */
+.text-sm {
+    font-size: 0.85rem !important;
+}
+
+/* 危險操作區塊的整體外距 */
+.danger-zone {
+    margin-top: 1.5rem;
+}
+
+/* 分隔線上下留白，徹底拉開空間感 */
+hr {
+    margin: 3rem 0 !important;
+    border: none;
+    border-top: 1px solid var(--border-color);
 }
