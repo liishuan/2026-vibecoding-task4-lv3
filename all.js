@@ -4,9 +4,6 @@
 const CLIENT_ID = '215959288600-q50d4lm7k6dcdankcnnqebscdba72vdj.apps.googleusercontent.com';
 const SPREADSHEET_ID = '1ZwdUgCGCUqAFpwJCcMNXSKaGyM12dEdBfUQb7Kt7aQ0';
 
-
-
-
 // Google API 權限範圍
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid';
 
@@ -80,7 +77,6 @@ function customConfirm(title, message, onConfirm) {
 
     btnCancel.classList.remove('hidden');
 
-    // 清除舊事件
     btnCancel.onclick = () => {
         modal.classList.add('hidden');
     };
@@ -114,7 +110,6 @@ function customAlert(title, message) {
 // ==========================================
 let tokenClient;
 
-// 初始化 Google Identity Services
 window.onload = function () {
     if (CLIENT_ID === '請在此填入您的Google Client ID') {
         customAlert('設定錯誤', '請先在 all.js 中填入您的 CLIENT_ID 與 SPREADSHEET_ID');
@@ -127,12 +122,9 @@ window.onload = function () {
         callback: async (tokenResponse) => {
             if (tokenResponse && tokenResponse.access_token) {
                 accessToken = tokenResponse.access_token;
-
-                // 儲存 token 與過期時間 (預設 1 小時內)
                 const expiresInMs = (tokenResponse.expires_in || 3599) * 1000;
                 localStorage.setItem('gapi_access_token', accessToken);
                 localStorage.setItem('gapi_token_exp', Date.now() + expiresInMs);
-
                 await proceedLoginFlow();
             }
         },
@@ -144,7 +136,6 @@ window.onload = function () {
 
     bindEvents();
 
-    // 檢查是否有尚未過期的 token
     const savedToken = localStorage.getItem('gapi_access_token');
     const tokenExp = localStorage.getItem('gapi_token_exp');
     if (savedToken && tokenExp && Date.now() < parseInt(tokenExp)) {
@@ -155,31 +146,26 @@ window.onload = function () {
 
 async function fetchGoogleAPI(url, options = {}) {
     if (!accessToken) throw new Error('No access token');
-
     const defaultHeaders = {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
     };
-
     const res = await fetch(url, {
         ...options,
         headers: { ...defaultHeaders, ...(options.headers || {}) }
     });
-
     if (!res.ok) {
         throw new Error(`[${res.status}] API Error: ${await res.text()}`);
     }
     return res.json();
 }
 
-// 讀取特定 Tab 資料
 async function getSheetData(range) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`;
     const result = await fetchGoogleAPI(url);
     return result.values || [];
 }
 
-// 寫入單筆新資料 (Append)
 async function appendRow(range, values) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED`;
     return await fetchGoogleAPI(url, {
@@ -188,21 +174,18 @@ async function appendRow(range, values) {
     });
 }
 
-// 更新特定範圍資料
 async function updateSheet(range, values) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
     return await fetchGoogleAPI(url, {
         method: 'PUT',
-        body: JSON.stringify({ values: values }) // values 為 2D array
+        body: JSON.stringify({ values: values })
     });
 }
 
-// 清空範圍資料
 async function clearSheet(range) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:clear`;
     return await fetchGoogleAPI(url, { method: 'POST' });
 }
-
 
 // ==========================================
 // 5. 核心登入流程與拉取資料
@@ -210,11 +193,9 @@ async function clearSheet(range) {
 async function proceedLoginFlow() {
     showLoading('取得身分驗證資訊...');
     try {
-        // 取得使用者 Email
         const userInfoMeta = await fetchGoogleAPI('https://www.googleapis.com/oauth2/v1/userinfo?alt=json');
-
         showLoading('檢查系統權限...');
-        const usersData = await getSheetData('Users!A2:C'); // 姓名, Email, 權限
+        const usersData = await getSheetData('Users!A2:C');
 
         let hasAccess = false;
         for (const row of usersData) {
@@ -222,7 +203,7 @@ async function proceedLoginFlow() {
                 currentUser.email = userInfoMeta.email;
                 currentUser.name = row[0];
                 currentUser.role = row[2];
-                currentUser.picture = userInfoMeta.picture; // 儲存 Google 頭像
+                currentUser.picture = userInfoMeta.picture;
                 hasAccess = true;
                 break;
             }
@@ -243,10 +224,8 @@ async function proceedLoginFlow() {
     } catch (error) {
         console.error('Login Flow Error:', error);
         hideLoading();
-
         const errorMsg = error.message || '未知錯誤';
 
-        // 如果發生 401/403 代表認證失效
         if (errorMsg.includes('[401]') || errorMsg.includes('[403]')) {
             localStorage.removeItem('gapi_access_token');
             localStorage.removeItem('gapi_token_exp');
@@ -261,10 +240,9 @@ async function proceedLoginFlow() {
 
 async function loadInitialData() {
     showLoading('載入菜單...');
-
     const [todayConfData, menuData] = await Promise.all([
         getSheetData('TodayConfig!A2:A'),
-        getSheetData('Menu!A2:E') // A名稱, B品名, C單價, D分類, E客製化標籤
+        getSheetData('Menu!A2:E')
     ]);
 
     appData.todayRestaurants = todayConfData.map(r => r[0]).filter(Boolean);
@@ -280,7 +258,6 @@ async function loadInitialData() {
     await loadPublicOrders();
 }
 
-
 // ==========================================
 // 6. 一般用戶點餐邏輯
 // ==========================================
@@ -291,7 +268,6 @@ function renderOrderingView() {
     const listContainer = document.getElementById('menu-list');
     listContainer.innerHTML = '';
 
-    // 過濾今日有營業的菜單
     const todayMenu = appData.menu.filter(item => appData.todayRestaurants.includes(item.restaurant));
 
     if (todayMenu.length === 0) {
@@ -303,7 +279,6 @@ function renderOrderingView() {
         const div = document.createElement('div');
         div.className = 'menu-item card';
 
-        // 渲染客製化標籤
         let pillsHtml = '';
         if (item.options.length > 0) {
             pillsHtml = `<div class="custom-options">` + item.options.map(opt => `<span class="pill-tag" onclick="addNote('${index}', '${opt}')">${opt}</span>`).join('') + `</div>`;
@@ -336,15 +311,13 @@ function addNote(index, text) {
 
 async function submitOrder(restaurant, itemName, price, noteId) {
     const note = document.getElementById(noteId).value.trim();
-
     const confirmMsg = `確定要送出以下訂單嗎？\n\n【${restaurant}】${itemName}\n金額：$${price}\n備註：${note || '無'}`;
+
     customConfirm('確認送出?', confirmMsg, async () => {
         showLoading('送出訂單中...');
-
         const now = new Date();
         const timeString = `${now.getFullYear()}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-        // Orders 欄位：[時間, Email, 姓名, 餐廳, 餐點, 金額, 備註, 已付金額(0), 付款狀態]
         const rowData = [
             timeString,
             currentUser.email,
@@ -360,7 +333,7 @@ async function submitOrder(restaurant, itemName, price, noteId) {
         try {
             await appendRow('Orders!A:I', rowData);
             hideLoading();
-            document.getElementById(noteId).value = ''; // 清空輸入
+            document.getElementById(noteId).value = '';
             customAlert('成功', '✅ 訂單已送出！');
             loadPublicOrders();
         } catch (e) {
@@ -370,12 +343,10 @@ async function submitOrder(restaurant, itemName, price, noteId) {
     });
 }
 
-
 // ==========================================
 // 7. 管理員邏輯
 // ==========================================
 function bindEvents() {
-    // 頁籤切換
     document.getElementById('btn-switch-admin').addEventListener('click', () => {
         document.getElementById('btn-switch-admin').classList.add('hidden');
         document.getElementById('btn-switch-user').classList.remove('hidden');
@@ -403,18 +374,15 @@ function bindEvents() {
         });
     });
 
-    // 儲存今日餐廳
     document.getElementById('btn-save-today-restaurants').addEventListener('click', async () => {
         const checked = Array.from(document.querySelectorAll('.res-checkbox:checked')).map(cb => [cb.value]);
 
         showLoading('儲存設定中...');
         try {
-            await clearSheet('TodayConfig!A2:A'); // 清空舊的
+            await clearSheet('TodayConfig!A2:A');
             if (checked.length > 0) {
                 await updateSheet('TodayConfig!A2:A' + (1 + checked.length), checked);
             }
-
-            // 重新載入
             await loadInitialData();
             hideLoading();
             customAlert('成功', '今日餐廳已更新！');
@@ -424,7 +392,6 @@ function bindEvents() {
         }
     });
 
-    // 清空訂單
     document.getElementById('btn-clear-orders').addEventListener('click', () => {
         customConfirm('⚠️ 嚴重警告', '確定要清空今天「所有」的訂單嗎？（標題列會保留，其餘刪除，且無法復原！）', async () => {
             showLoading('清空中...');
@@ -440,26 +407,22 @@ function bindEvents() {
         });
     });
 
-    // 重新整理訂單 (管理員端)
     document.getElementById('btn-refresh-orders').addEventListener('click', () => {
         loadOrdersData();
     });
 
-    // 重新整理大家的訂單 (前台端)
     document.getElementById('btn-refresh-public-orders').addEventListener('click', () => {
         loadPublicOrders();
     });
 
-    // 登出邏輯
     document.getElementById('btn-logout').addEventListener('click', () => {
         localStorage.removeItem('gapi_access_token');
         localStorage.removeItem('gapi_token_exp');
-        location.reload(); // 重新整理頁面是最乾淨的登出方式
+        location.reload();
     });
 }
 
 function loadAdminData() {
-    // 渲染所有餐廳供勾選
     const allRestaurants = [...new Set(appData.menu.map(m => m.restaurant))];
     const container = document.getElementById('restaurant-checkboxes');
     container.innerHTML = '';
@@ -474,7 +437,6 @@ function loadAdminData() {
     });
 }
 
-// 拉取並渲染前台公開訂單與彙整
 async function loadPublicOrders() {
     const tbody = document.getElementById('public-orders-tbody');
     const summaryTbody = document.getElementById('public-summary-tbody');
@@ -483,7 +445,7 @@ async function loadPublicOrders() {
     summaryTbody.innerHTML = '<tr><td colspan="3" style="text-align:center">載入中...</td></tr>';
 
     try {
-        const rawOrders = await getSheetData('Orders!A2:G'); // A時間, BEmail, C姓名, D餐廳, E餐點, F金額, G備註
+        const rawOrders = await getSheetData('Orders!A2:G');
         tbody.innerHTML = '';
         summaryTbody.innerHTML = '';
 
@@ -493,7 +455,7 @@ async function loadPublicOrders() {
             return;
         }
 
-        const summary = {}; // 用於統計每人金額： { "姓名": { count: 0, total: 0 } }
+        const summary = {};
 
         rawOrders.forEach(row => {
             const name = row[2] || '匿名';
@@ -502,7 +464,6 @@ async function loadPublicOrders() {
             const price = parseInt(row[5]) || 0;
             const note = row[6] ? `(${row[6]})` : '';
 
-            // 1. 渲染明細表
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${name}</td>
@@ -513,7 +474,6 @@ async function loadPublicOrders() {
             `;
             tbody.appendChild(tr);
 
-            // 2. 統計彙整資料
             if (!summary[name]) {
                 summary[name] = { count: 0, total: 0 };
             }
@@ -521,7 +481,6 @@ async function loadPublicOrders() {
             summary[name].total += price;
         });
 
-        // 3. 渲染彙整表
         Object.keys(summary).sort().forEach(name => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -547,7 +506,7 @@ async function loadOrdersData() {
     try {
         const rawOrders = await getSheetData('Orders!A2:I');
         appData.orders = rawOrders.map((row, idx) => ({
-            rowIndex: idx + 2, // Excel 是 1-indexed，且資料從 A2 開始
+            rowIndex: idx + 2,
             time: row[0] || '',
             email: row[1] || '',
             name: row[2] || '',
@@ -569,7 +528,6 @@ async function loadOrdersData() {
     }
 }
 
-// 宣染帳務表格 (依人彙整)
 function renderAdminOrdersTable() {
     const tbody = document.getElementById('admin-orders-tbody');
     tbody.innerHTML = '';
@@ -579,7 +537,6 @@ function renderAdminOrdersTable() {
         return;
     }
 
-    // 依 Email 彙整資料
     const personSummary = {};
     appData.orders.forEach(order => {
         const key = order.email;
@@ -633,7 +590,6 @@ function renderAdminOrdersTable() {
     });
 }
 
-// 更新該使用者的總帳務 (分配至各訂單列)
 async function updatePersonFinance(email, totalPrice) {
     const inputId = `person-paid-${email.replace(/[@.]/g, '_')}`;
     let newTotalPaid = parseInt(document.getElementById(inputId).value) || 0;
@@ -675,7 +631,6 @@ function renderCopySection() {
     const container = document.getElementById('copy-order-config');
     container.innerHTML = '';
 
-    // 取出今天有出現的訂單店家
     const orderRestaurants = [...new Set(appData.orders.map(o => o.restaurant))];
 
     if (orderRestaurants.length === 0) {
@@ -684,14 +639,23 @@ function renderCopySection() {
     }
 
     orderRestaurants.forEach(res => {
-        // 取得過往 localStorage 紀錄
+        // 取得 localStorage 的發票與外送資訊
         const localUid = localStorage.getItem(`inv_uid_${res}`) || '';
         const localTitle = localStorage.getItem(`inv_title_${res}`) || '';
+        const localDelName = localStorage.getItem(`del_name_${res}`) || '';
+        const localDelPhone = localStorage.getItem(`del_phone_${res}`) || '';
+        const localDelAddr = localStorage.getItem(`del_addr_${res}`) || '';
 
         const card = document.createElement('div');
         card.className = 'copy-restaurant-card';
         card.innerHTML = `
-            <h4>${res}</h4>
+            <div class="copy-card-header">
+                <h4>${res}</h4>
+                <button class="btn btn-primary btn-sm" onclick="generateAndCopyText('${res}', this)">
+                    📋 一鍵複製訂單
+                </button>
+            </div>
+            
             <div class="copy-meta">
                 <label class="checkbox-label">
                     <input type="checkbox" id="need-utensil-${res}"> 需要餐具
@@ -699,19 +663,35 @@ function renderCopySection() {
                 <label class="checkbox-label">
                     <input type="checkbox" id="need-invoice-${res}" onchange="toggleInvoice('${res}')"> 需要發票
                 </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="need-delivery-${res}" onchange="toggleDelivery('${res}')"> 需要外送
+                </label>
             </div>
-            <div class="invoice-fields hidden mt-1" id="inv-fields-${res}">
-                <input type="text" id="uid-${res}" placeholder="統一編號" value="${localUid}">
-                <input type="text" id="title-${res}" placeholder="公司抬頭" value="${localTitle}">
-                <button class="btn-sm btn-outline" onclick="saveInvoiceData('${res}')">記住我</button>
+            
+            <div class="invoice-fields hidden mt-3" id="inv-fields-${res}">
+                <strong class="text-sm" style="color: var(--primary-color);">🧾 發票資訊</strong>
+                <input type="text" id="uid-${res}" class="form-input" placeholder="統一編號" value="${localUid}">
+                <input type="text" id="title-${res}" class="form-input" placeholder="公司抬頭" value="${localTitle}">
+                <label class="checkbox-label text-sm" style="margin-top: 4px;">
+                    <input type="checkbox" onchange="saveInvoiceData('${res}')"> 記住發票資訊
+                </label>
             </div>
-            <button class="btn btn-primary mt-1" onclick="generateAndCopyText('${res}')">一鍵複製 ${res} 訂單</button>
+
+            <div class="invoice-fields hidden mt-3" id="del-fields-${res}">
+                <strong class="text-sm" style="color: var(--primary-color);">🛵 外送資訊</strong>
+                <input type="text" id="del-name-${res}" class="form-input" placeholder="聯絡人" value="${localDelName}">
+                <input type="text" id="del-phone-${res}" class="form-input" placeholder="聯絡電話" value="${localDelPhone}">
+                <input type="text" id="del-addr-${res}" class="form-input" placeholder="外送地址" value="${localDelAddr}">
+                <label class="checkbox-label text-sm" style="margin-top: 4px;">
+                    <input type="checkbox" onchange="saveDeliveryData('${res}')"> 記住外送資訊
+                </label>
+            </div>
         `;
         container.appendChild(card);
     });
 }
 
-// 顯示發票欄位
+// 控制發票區塊展開
 window.toggleInvoice = function (res) {
     const chk = document.getElementById(`need-invoice-${res}`).checked;
     if (chk) {
@@ -721,40 +701,79 @@ window.toggleInvoice = function (res) {
     }
 };
 
+// 控制外送區塊展開
+window.toggleDelivery = function (res) {
+    const chk = document.getElementById(`need-delivery-${res}`).checked;
+    if (chk) {
+        document.getElementById(`del-fields-${res}`).classList.remove('hidden');
+    } else {
+        document.getElementById(`del-fields-${res}`).classList.add('hidden');
+    }
+};
+
+// 儲存發票資訊 (移除干擾的 Alert)
 window.saveInvoiceData = function (res) {
     const uid = document.getElementById(`uid-${res}`).value;
     const title = document.getElementById(`title-${res}`).value;
     localStorage.setItem(`inv_uid_${res}`, uid);
     localStorage.setItem(`inv_title_${res}`, title);
-    customAlert('成功', '統編抬頭已記錄在瀏覽器中！');
 };
 
-// 產生字串並放入剪貼簿
-window.generateAndCopyText = function (targetRes) {
-    // 篩選該餐廳訂單
+// 儲存外送資訊 (移除干擾的 Alert)
+window.saveDeliveryData = function (res) {
+    const name = document.getElementById(`del-name-${res}`).value;
+    const phone = document.getElementById(`del-phone-${res}`).value;
+    const addr = document.getElementById(`del-addr-${res}`).value;
+    localStorage.setItem(`del_name_${res}`, name);
+    localStorage.setItem(`del_phone_${res}`, phone);
+    localStorage.setItem(`del_addr_${res}`, addr);
+};
+
+// 一鍵複製核心邏輯
+window.generateAndCopyText = function (targetRes, btnElement) {
     const targetOrders = appData.orders.filter(o => o.restaurant === targetRes);
 
     let totalQty = 0;
     let totalPrice = 0;
-    let orderTextList = [];
 
-    targetOrders.forEach((order, idx) => {
+    // 1. 群組化：相同餐點與備註的訂單合併
+    const groupedOrders = {};
+
+    targetOrders.forEach(order => {
         totalQty++;
         totalPrice += order.price;
-        let noteStr = order.note ? ` (備註：${order.note})` : '';
-        orderTextList.push(`${idx + 1}. ${order.itemName} - ${order.name}${noteStr}`);
+
+        // 組合 Key 來判斷項目是否完全相同
+        const key = `${order.itemName}_${order.note}`;
+
+        if (!groupedOrders[key]) {
+            groupedOrders[key] = {
+                itemName: order.itemName,
+                note: order.note,
+                qty: 0
+            };
+        }
+        groupedOrders[key].qty++;
+    });
+
+    // 2. 產出聚合後的清單文字
+    let orderTextList = [];
+    Object.values(groupedOrders).forEach(item => {
+        let noteStr = item.note ? ` (備註：${item.note})` : '';
+        orderTextList.push(`${item.itemName}${noteStr} ${item.qty}份`);
     });
 
     let resultString = `【${targetRes}】\n` + orderTextList.join('\n');
     resultString += `\n-- 共 ${totalQty} 份，總計 $${totalPrice} 元 --\n`;
 
-    // 附加統一設定
+    // 3. 處理附註與外送資訊
     const needUtensil = document.getElementById(`need-utensil-${targetRes}`).checked;
     const needInvoice = document.getElementById(`need-invoice-${targetRes}`).checked;
+    const needDelivery = document.getElementById(`need-delivery-${targetRes}`).checked;
 
     let bottomNotes = [];
-    if (needUtensil) bottomNotes.push('請提供餐具');
-    else bottomNotes.push('我們不需要餐具');
+    if (needUtensil) bottomNotes.push('需要餐具');
+    else bottomNotes.push('不需要餐具');
 
     if (needInvoice) {
         const uid = document.getElementById(`uid-${targetRes}`).value;
@@ -770,9 +789,29 @@ window.generateAndCopyText = function (targetRes) {
         resultString += `※附註：${bottomNotes.join('、')}\n`;
     }
 
-    // 複製到剪貼簿功能
+    if (needDelivery) {
+        const dName = document.getElementById(`del-name-${targetRes}`).value;
+        const dPhone = document.getElementById(`del-phone-${targetRes}`).value;
+        const dAddr = document.getElementById(`del-addr-${targetRes}`).value;
+        resultString += `\n外送資訊\n聯絡人：${dName}\n聯絡電話：${dPhone}\n外送地址：${dAddr}\n`;
+    }
+
+    // 4. 寫入剪貼簿與按鈕微互動 (移除彈出視窗)
     navigator.clipboard.writeText(resultString).then(() => {
-        customAlert('複製成功', '文字已複製至剪貼簿，可以直接到 LINE 貼上！\n\n' + resultString.substring(0, 50) + '...');
+        const originalHtml = btnElement.innerHTML;
+
+        // 變更按鈕為成功狀態
+        btnElement.innerHTML = '✅ 已複製！';
+        btnElement.style.backgroundColor = '#2D6A4F';
+        btnElement.style.borderColor = '#2D6A4F';
+
+        // 2秒後恢復原狀
+        setTimeout(() => {
+            btnElement.innerHTML = originalHtml;
+            btnElement.style.backgroundColor = '';
+            btnElement.style.borderColor = '';
+        }, 2000);
+
     }).catch(err => {
         console.error(err);
         customAlert('複製失敗', '請確認瀏覽器有無剪貼簿權限');
